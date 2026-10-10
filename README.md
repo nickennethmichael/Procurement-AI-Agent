@@ -26,8 +26,8 @@ Use **Python 3.11** for the pinned dependencies in `requirements.txt`. In partic
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd procurement-optimization-ai
+git clone https://github.com/nickennethmichael/Procurement-AI-Agent.git
+cd Procurement-AI-Agent
 ```
 
 2. Create a virtual environment and install dependencies (Windows PowerShell). Activation is optional; using its Python executable directly avoids PowerShell's script execution policy:
