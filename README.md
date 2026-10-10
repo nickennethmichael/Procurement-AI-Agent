@@ -156,7 +156,7 @@ The app is a procurement decision-support system: it gathers hospital purchasing
 
 ## License
 
-MIT License - see LICENSE file for details.
+No license file is currently provided. All rights are reserved by the copyright holder.
 
 ## Contact:
 for any inquiries : vikhrams@saveetha.ac.in
