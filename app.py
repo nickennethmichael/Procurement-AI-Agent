@@ -127,15 +127,23 @@ def main():
         
         # Data management
         st.markdown("## 📊 Data Management")
+        sample_order_count = st.slider(
+            "Sample purchase orders",
+            min_value=100,
+            max_value=1000,
+            value=500,
+            step=100,
+            help="Generate more orders for broader price-range and optimization examples."
+        )
         
         if st.button("📁 Load Sample Data"):
             with st.spinner("Loading sample data..."):
                 try:
                     generator = SampleDataGenerator()
-                    sample_data = generator.generate_complete_dataset(100)
+                    sample_data = generator.generate_complete_dataset(sample_order_count)
                     st.session_state.sample_data = sample_data
                     st.session_state.data_loaded = True
-                    st.success("Sample data loaded successfully!")
+                    st.success(f"Loaded sample data with {sample_order_count} purchase orders!")
                 except Exception as e:
                     st.error(f"Error loading sample data: {e}")
         
@@ -456,7 +464,7 @@ def show_demand_forecasting():
             if hasattr(st.session_state, 'training_results'):
                 st.markdown("### 📅 Seasonality Analysis")
                 data = st.session_state.sample_data
-                seasonality = forecaster.analyze_seasonality(data['purchase_orders'])
+                seasonality = DemandForecaster().analyze_seasonality(data['purchase_orders'])
                 
                 if 'error' not in seasonality:
                     col1, col2 = st.columns(2)

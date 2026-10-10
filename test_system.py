@@ -7,6 +7,8 @@ import sys
 import traceback
 from datetime import datetime
 
+import pandas as pd
+
 def test_imports():
     """Test that all modules can be imported"""
     print("Testing imports...")
@@ -57,6 +59,16 @@ def test_sample_data_generation():
         
         generator = SampleDataGenerator()
         data = generator.generate_complete_dataset(50)  # Generate 50 orders for testing
+        repeatable_data = SampleDataGenerator(seed=42).generate_complete_dataset(50)
+        repeated_seed_data = SampleDataGenerator(seed=42).generate_complete_dataset(50)
+
+        pd.testing.assert_frame_equal(
+            repeatable_data['purchase_orders'],
+            repeated_seed_data['purchase_orders']
+        )
+        if data['purchase_orders'].equals(repeatable_data['purchase_orders']):
+            print("❌ Default sample data should vary between generations")
+            return False
         
         # Check data structure
         required_keys = ['purchase_orders', 'vendors', 'items', 'historical_data']
@@ -76,6 +88,17 @@ def test_sample_data_generation():
         
         if len(data['items']) == 0:
             print("❌ No items generated")
+            return False
+
+        orders = data['purchase_orders']
+        if orders['item_id'].nunique() != len(data['items']):
+            print("❌ Purchase orders do not cover the full item catalog")
+            return False
+        if orders['unit_price'].min() >= 1 or orders['unit_price'].max() < 1000:
+            print("❌ Purchase orders do not cover low and high price ranges")
+            return False
+        if not (orders['total_amount'].round(2) == (orders['quantity'] * orders['unit_price']).round(2)).all():
+            print("❌ Purchase order totals do not match item quantities and prices")
             return False
         
         print(f"✅ Sample data generated successfully:")
@@ -199,6 +222,22 @@ def test_cost_optimization():
         print(f"✅ Cost optimization completed:")
         print(f"   - Total potential savings: ${total_savings:,.2f}")
         
+        strategy_names = [
+            'bulk_purchasing',
+            'vendor_consolidation',
+            'price_negotiation',
+            'inventory_optimization',
+            'contract_optimization'
+        ]
+        missing_opportunities = [
+            strategy for strategy in strategy_names
+            if 'error' in opportunities.get(strategy, {})
+            or not opportunities.get(strategy, {}).get('opportunities')
+        ]
+        if missing_opportunities:
+            print(f"❌ Strategies returned no opportunities: {', '.join(missing_opportunities)}")
+            return False
+
         # Count successful strategies
         successful_strategies = 0
         for strategy, result in opportunities.items():

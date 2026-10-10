@@ -7,14 +7,15 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 class SampleDataGenerator:
     """Generate realistic sample data for hospital procurement"""
     
-    def __init__(self):
+    def __init__(self, seed: Optional[int] = None):
         """Initialize the sample data generator"""
+        self.random = random.Random(seed)
         self.vendors = self._create_vendor_list()
         self.items = self._create_item_catalog()
         self.categories = self._get_categories()
@@ -72,9 +73,9 @@ class SampleDataGenerator:
                 "email": "david@labsupplies.com",
                 "phone": "555-0105",
                 "category": "Laboratory",
-                "rating": 4.3,
-                "quality_score": 4.1,
-                "reliability_score": 4.4,
+                "rating": 3.8,
+                "quality_score": 3.9,
+                "reliability_score": 4.0,
                 "delivery_lead_time": 8
             }
         ]
@@ -123,32 +124,58 @@ class SampleDataGenerator:
             "Surgical Equipment": ["Instruments", "Implants", "Consumables"]
         }
     
-    def generate_purchase_orders(self, num_orders: int = 100, start_date: str = "2023-01-01", end_date: str = "2024-01-31") -> pd.DataFrame:
+    def generate_purchase_orders(self, num_orders: int = 500, start_date: str = "2023-01-01", end_date: str = "2024-01-31") -> pd.DataFrame:
         """Generate sample purchase orders"""
         
         orders = []
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         
+        vendor_candidates = {
+            "PPE": [1, 4],
+            "Medical Supplies": [1, 4],
+            "Equipment": [2, 4],
+            "Pharmaceuticals": [1, 3],
+            "Laboratory": [1, 5]
+        }
+        vendor_price_factors = {1: 0.90, 2: 0.88, 3: 1.15, 4: 1.18, 5: 1.12}
+        frequent_items = {0, 1, 2, 4, 6, 7, 8, 13, 14, 15}
+        item_order_counts = {}
+
         for i in range(num_orders):
             # Random order date
-            order_date = start_dt + timedelta(days=random.randint(0, (end_dt - start_dt).days))
-            
-            # Random vendor
-            vendor = random.choice(self.vendors)
-            vendor_id = self.vendors.index(vendor) + 1
+            order_date = start_dt + timedelta(days=self.random.randint(0, (end_dt - start_dt).days))
+
+            # Cycle through every price tier while repeatedly replenishing common supplies.
+            item_index = i % len(self.items)
+            item = self.items[item_index]
+            candidates = vendor_candidates[item["category"]]
+            item_order_count = item_order_counts.get(item_index, 0)
+            vendor_id = (
+                candidates[1]
+                if item["category"] == "Laboratory" or item_order_count % 4 == 3
+                else candidates[0]
+            )
+            item_order_counts[item_index] = item_order_count + 1
+            vendor = self.vendors[vendor_id - 1]
+            if item["category"] == "Laboratory":
+                quantity = self.random.randint(1, 3)
+            elif item["unit_price"] >= 450:
+                quantity = self.random.randint(1, 5)
+            elif item_index in frequent_items and item_order_count > 0:
+                quantity = (
+                    self.random.randint(1, 10)
+                    if vendor_id == candidates[0]
+                    else self.random.randint(30, 100)
+                )
+            else:
+                quantity = self.random.randint(10, 100)
+            unit_price = round(item["unit_price"] * vendor_price_factors[vendor_id], 2)
             
             # Random status with weighted probability
             status_weights = {"pending": 0.2, "approved": 0.3, "delivered": 0.4, "cancelled": 0.1}
-            status = random.choices(list(status_weights.keys()), weights=list(status_weights.values()))[0]
-            
-            # Random total amount (higher for equipment, lower for supplies)
-            if vendor["category"] == "Equipment":
-                total_amount = random.uniform(1000, 10000)
-            elif vendor["category"] == "Pharmaceuticals":
-                total_amount = random.uniform(200, 2000)
-            else:
-                total_amount = random.uniform(100, 1500)
+            status = self.random.choices(list(status_weights.keys()), weights=list(status_weights.values()))[0]
+            total_amount = round(quantity * unit_price, 2)
             
             # Expected delivery date
             expected_delivery = order_date + timedelta(days=vendor["delivery_lead_time"])
@@ -156,13 +183,16 @@ class SampleDataGenerator:
             # Actual delivery date (if delivered)
             actual_delivery = None
             if status == "delivered":
-                actual_delivery = expected_delivery + timedelta(days=random.randint(-2, 5))
+                actual_delivery = expected_delivery + timedelta(days=self.random.randint(-2, 5))
             
             order = {
                 "order_id": i + 1,
                 "order_number": f"PO-2024-{i+1:03d}",
                 "vendor_id": vendor_id,
                 "vendor_name": vendor["name"],
+                "item_id": self.items.index(item) + 1,
+                "quantity": quantity,
+                "unit_price": unit_price,
                 "order_date": order_date,
                 "expected_delivery_date": expected_delivery,
                 "actual_delivery_date": actual_delivery,
@@ -205,15 +235,16 @@ class SampleDataGenerator:
     def generate_item_data(self) -> pd.DataFrame:
         """Generate item catalog data"""
         items_data = []
+        primary_vendors = {
+            "PPE": 1,
+            "Medical Supplies": 1,
+            "Equipment": 2,
+            "Pharmaceuticals": 3,
+            "Laboratory": 5
+        }
         
         for i, item in enumerate(self.items):
-            # Assign random vendor based on category
-            category_vendors = [v for v in self.vendors if v["category"] == item["category"]]
-            if category_vendors:
-                vendor = random.choice(category_vendors)
-                vendor_id = self.vendors.index(vendor) + 1
-            else:
-                vendor_id = random.randint(1, len(self.vendors))
+            vendor_id = primary_vendors[item["category"]]
             
             item_data = {
                 "item_id": i + 1,
@@ -224,8 +255,8 @@ class SampleDataGenerator:
                 "unit": item["unit"],
                 "vendor_id": vendor_id,
                 "unit_price": item["unit_price"],
-                "min_order_quantity": random.randint(1, 50),
-                "lead_time": random.randint(3, 21),
+                "min_order_quantity": 1 if item["unit_price"] >= 450 else 10,
+                "lead_time": self.random.randint(3, 21),
                 "is_critical": item["is_critical"],
                 "is_active": True
             }
@@ -246,25 +277,25 @@ class SampleDataGenerator:
             base_amount = 5000  # Base daily spend
             seasonal_factor = 1 + 0.3 * np.sin(2 * np.pi * i / 365)  # Seasonal variation
             trend_factor = 1 + 0.001 * i  # Slight upward trend
-            random_factor = random.uniform(0.8, 1.2)  # Random variation
+            random_factor = self.random.uniform(0.8, 1.2)  # Random variation
             
             daily_spend = base_amount * seasonal_factor * trend_factor * random_factor
             
             # Add some category distribution
             categories = list(self.categories.keys())
-            category = random.choice(categories)
+            category = self.random.choice(categories)
             
             historical_data.append({
                 "date": date,
                 "amount": round(daily_spend, 2),
                 "category": category,
-                "vendor_count": random.randint(3, 8),
-                "order_count": random.randint(10, 30)
+                "vendor_count": self.random.randint(3, 8),
+                "order_count": self.random.randint(10, 30)
             })
         
         return pd.DataFrame(historical_data)
     
-    def generate_complete_dataset(self, num_orders: int = 100) -> Dict[str, pd.DataFrame]:
+    def generate_complete_dataset(self, num_orders: int = 500) -> Dict[str, pd.DataFrame]:
         """Generate complete dataset for testing"""
         
         return {

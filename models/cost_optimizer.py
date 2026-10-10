@@ -68,10 +68,10 @@ class CostOptimizer:
             return {"error": "Insufficient data for bulk purchasing analysis"}
         
         # Merge purchase orders with item data
-        merged_data = purchase_orders.merge(
-            item_data[['item_id', 'name', 'unit_price', 'min_order_quantity']],
-            left_on='item_id', right_on='item_id', how='left'
-        )
+        item_columns = ['item_id', 'name', 'min_order_quantity']
+        if 'unit_price' not in purchase_orders.columns:
+            item_columns.append('unit_price')
+        merged_data = purchase_orders.merge(item_data[item_columns], on='item_id', how='left')
         
         # Group by item to identify bulk purchasing opportunities
         item_analysis = merged_data.groupby(['item_id', 'name']).agg({
@@ -181,10 +181,10 @@ class CostOptimizer:
             return {"error": "Insufficient data for price negotiation analysis"}
         
         # Analyze price variations for same items across vendors
-        price_analysis = purchase_orders.merge(
-            item_data[['item_id', 'name', 'unit_price']],
-            on='item_id', how='left'
-        )
+        item_columns = ['item_id', 'name']
+        if 'unit_price' not in purchase_orders.columns:
+            item_columns.append('unit_price')
+        price_analysis = purchase_orders.merge(item_data[item_columns], on='item_id', how='left')
         
         # Group by item to find price variations
         item_price_variations = price_analysis.groupby(['item_id', 'name']).agg({
@@ -306,8 +306,7 @@ class CostOptimizer:
         
         # Analyze vendor performance and spending patterns
         vendor_performance = purchase_orders.groupby('vendor_id').agg({
-            'total_amount': 'sum',
-            'order_count': 'count',
+            'total_amount': ['sum', 'count'],
             'order_date': ['min', 'max']
         }).reset_index()
         

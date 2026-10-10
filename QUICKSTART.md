@@ -4,8 +4,14 @@
 
 ### 1. Install Dependencies
 
+Use **Python 3.11** with the pinned dependencies. Python 3.14 is not supported by this dependency set; pip may otherwise try to build NumPy and pandas from source.
+
+On Windows PowerShell, create a virtual environment and use its Python executable directly. This avoids PowerShell's script execution policy; activation is not required:
+
 ```bash
-pip install -r requirements.txt
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 ### 2. Install Ollama (Optional - for local LLM)
@@ -20,7 +26,7 @@ ollama pull mistral:7b
 ### 3. Run the System Test
 
 ```bash
-python test_system.py
+.\.venv\Scripts\python.exe test_system.py
 ```
 
 This will verify all components are working correctly.
@@ -28,7 +34,7 @@ This will verify all components are working correctly.
 ### 4. Launch the Application
 
 ```bash
-streamlit run app.py
+.\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
 The application will open in your browser at `http://localhost:8501`
